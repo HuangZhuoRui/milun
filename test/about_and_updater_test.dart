@@ -31,6 +31,31 @@ void main() {
 
       expect(accelerated, 'https://update.vincenthzr.org:8443/download/HuangZhuoRui/milun/releases/download/v1.0.0/milun-v1.0.0.apk');
     });
+
+    test('ParsedChangelog 正确将 feat 与 fix 分离并分类', () {
+      const rawChangelog = '''
+### 弥纶 Android v1.0.0 更新内容
+- feat: 新增关于与设置页面
+- feat 支持自建加速节点
+- fix: 修复深色模式边框问题
+- fix 修复时辰表显示异常
+- chore: 优化构建配置
+''';
+
+      final parsed = ParsedChangelog.parse(rawChangelog);
+
+      expect(parsed.hasCategorized, isTrue);
+      expect(parsed.features.length, 2);
+      expect(parsed.features[0], '新增关于与设置页面');
+      expect(parsed.features[1], '支持自建加速节点');
+
+      expect(parsed.fixes.length, 2);
+      expect(parsed.fixes[0], '修复深色模式边框问题');
+      expect(parsed.fixes[1], '修复时辰表显示异常');
+
+      expect(parsed.others.length, 1);
+      expect(parsed.others[0], 'chore: 优化构建配置');
+    });
   });
 
   group('AboutPage 关于与设置页面 Widget 测试', () {
@@ -46,28 +71,28 @@ void main() {
       // 验证品牌纯文字与出处
       expect(find.text('弥纶 · MiLun'), findsOneWidget);
       expect(find.textContaining('易与天地准，故能弥纶天地之道'), findsOneWidget);
-      expect(find.textContaining('当前版本:'), findsOneWidget);
+      expect(find.text('当前版本: v1.0.0'), findsOneWidget);
 
       // 验证 DeepSeek 系统配置入口
       expect(find.text('DeepSeek 认知智能配置'), findsOneWidget);
 
       // 验证独立检查更新入口
-      expect(find.text('检查更新与历史'), findsOneWidget);
-      expect(find.text('检查新版本并浏览历史版本更新日志'), findsOneWidget);
+      expect(find.text('软件更新'), findsOneWidget);
+      expect(find.text('检查新版本与浏览历史更新'), findsOneWidget);
 
       // 点击跳转至独立更新页面
-      await tester.tap(find.text('检查更新与历史'));
+      await tester.tap(find.text('软件更新'));
       await tester.pumpAndSettle();
 
       // 验证已到达 UpdateHistoryPage
       expect(find.byType(UpdateHistoryPage), findsOneWidget);
-      expect(find.text('当前安装版本'), findsOneWidget);
-      expect(find.text('版本发布记录与更新日志'), findsOneWidget);
+      expect(find.text('当前版本'), findsOneWidget);
+      expect(find.text('历史更新'), findsOneWidget);
     });
   });
 
   group('UpdateHistoryPage 独立更新与历史发布页面测试', () {
-    testWidgets('正常渲染当前版本卡片、检查更新按钮与历史日志列表', (WidgetTester tester) async {
+    testWidgets('正常渲染当前版本卡片、检查更新按钮与历史更新标题', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
@@ -76,10 +101,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('检查更新与历史'), findsOneWidget);
-      expect(find.text('当前安装版本'), findsOneWidget);
+      expect(find.text('软件更新'), findsOneWidget);
+      expect(find.text('当前版本'), findsOneWidget);
       expect(find.text('检查更新'), findsOneWidget);
-      expect(find.text('版本发布记录与更新日志'), findsOneWidget);
+      expect(find.text('历史更新'), findsOneWidget);
     });
   });
 }

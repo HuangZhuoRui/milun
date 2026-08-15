@@ -32,7 +32,7 @@ class AboutPage extends StatelessWidget {
     final cardBg = AppTheme.getCardColor(context);
     final jade = isDark ? AppTheme.jadeGreen : AppTheme.lightJadeGreen;
 
-    final currentVer = 'v${AppUpdaterService.currentAppVersion}+${AppUpdaterService.currentBuildNumber}';
+    final currentVer = 'v${AppUpdaterService.currentAppVersion}';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -127,11 +127,11 @@ class AboutPage extends StatelessWidget {
                     ListTile(
                       leading: Icon(Icons.system_update_alt_rounded, color: gold, size: 22),
                       title: Text(
-                        '检查更新与历史',
+                        '软件更新',
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textPrimary),
                       ),
                       subtitle: Text(
-                        '检查新版本并浏览历史版本更新日志',
+                        '检查新版本与浏览历史更新',
                         style: TextStyle(fontSize: 11.5, color: textSecondary),
                       ),
                       trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: gold),

@@ -1,8 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../../../core/updater/app_updater_service.dart';
 import '../../theme/app_theme.dart';
+
+/// 更新日志结构化解析模型
+class ParsedChangelog {
+  final List<String> features;
+  final List<String> fixes;
+  final List<String> others;
+
+  const ParsedChangelog({
+    required this.features,
+    required this.fixes,
+    required this.others,
+  });
+
+  bool get hasCategorized => features.isNotEmpty || fixes.isNotEmpty;
+
+  static ParsedChangelog parse(String rawBody) {
+    final List<String> features = [];
+    final List<String> fixes = [];
+    final List<String> others = [];
+
+    final lines = rawBody.split('\n');
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line.startsWith('#')) {
+        continue;
+      }
+
+      String content = line;
+      if (content.startsWith('- ') || content.startsWith('* ')) {
+        content = content.substring(2).trim();
+      }
+
+      final lower = content.toLowerCase();
+      if (lower.startsWith('feat:') || lower.startsWith('feat：')) {
+        features.add(content.substring(5).trim());
+      } else if (lower.startsWith('feat ')) {
+        features.add(content.substring(5).trim());
+      } else if (lower.startsWith('feature:') || lower.startsWith('feature ')) {
+        features.add(content.substring(lower.indexOf('feature') + 7).trim());
+      } else if (lower.startsWith('fix:') || lower.startsWith('fix：')) {
+        fixes.add(content.substring(4).trim());
+      } else if (lower.startsWith('fix ')) {
+        fixes.add(content.substring(4).trim());
+      } else if (lower.startsWith('bugfix:') || lower.startsWith('bugfix ')) {
+        fixes.add(content.substring(lower.indexOf('bugfix') + 6).trim());
+      } else if (content.isNotEmpty) {
+        others.add(content);
+      }
+    }
+
+    return ParsedChangelog(
+      features: features,
+      fixes: fixes,
+      others: others,
+    );
+  }
+}
 
 /// 雅秋立体光影风格 · 软件更新与历史发布记录页面
 class UpdateHistoryPage extends StatefulWidget {
@@ -119,6 +177,17 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
     }
   }
 
+  String _formatReleaseName(String tagName) {
+    String cleanTag = tagName.trim();
+    if (cleanTag.startsWith('android-')) {
+      cleanTag = cleanTag.substring(8);
+    }
+    if (!cleanTag.startsWith('v') && !cleanTag.startsWith('V')) {
+      cleanTag = 'v$cleanTag';
+    }
+    return '弥纶 $cleanTag';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -129,7 +198,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
     final jade = isDark ? AppTheme.jadeGreen : AppTheme.lightJadeGreen;
     final cinnabar = isDark ? AppTheme.cinnabarRed : AppTheme.lightCinnabarRed;
 
-    final currentVer = 'v${AppUpdaterService.currentAppVersion}+${AppUpdaterService.currentBuildNumber}';
+    final currentVer = 'v${AppUpdaterService.currentAppVersion}';
 
     final latestRelease = _releases.isNotEmpty ? _releases.first : null;
     final bool hasNewer = latestRelease != null &&
@@ -137,6 +206,8 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
           latestRelease.tagName,
           AppUpdaterService.currentAppVersion,
         );
+
+    final historyReleases = hasNewer ? _releases.sublist(1) : _releases;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.inkBlack : AppTheme.lightBackground,
@@ -149,7 +220,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          '检查更新与历史',
+          '软件更新',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
@@ -165,7 +236,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           children: [
-            // 1. 当前版本信息卡片
+            // 1. 当前版本卡片
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -193,7 +264,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '当前安装版本',
+                              '当前版本',
                               style: TextStyle(fontSize: 11.5, color: textSecondary),
                             ),
                             const SizedBox(height: 2),
@@ -233,7 +304,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
 
             const SizedBox(height: 16),
 
-            // 2. 状态提示条（发现新版 / 已是最新）
+            // 错误提示
             if (_errorMessage != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -252,104 +323,43 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                     ),
                   ],
                 ),
-              )
-            else if (_releases.isNotEmpty) ...[
-              if (hasNewer)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: gold.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: gold.withValues(alpha: 0.35)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.new_releases_rounded, color: gold, size: 20),
-                          const SizedBox(width: 6),
-                          Text(
-                            '发现新版本: ${latestRelease.tagName}',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: gold),
-                          ),
-                          if (latestRelease.androidAsset != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Text(
-                                '(${latestRelease.androidAsset!.formattedSize})',
-                                style: TextStyle(fontSize: 11, color: textSecondary),
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (latestRelease.body.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          latestRelease.body,
-                          style: TextStyle(fontSize: 12, color: textPrimary, height: 1.45),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      if (latestRelease.androidDownloadUrl != null)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _onDownloadRelease(
-                              latestRelease.androidDownloadUrl!,
-                              latestRelease.tagName,
-                            ),
-                            icon: const Icon(Icons.speed_rounded, size: 16),
-                            label: const Text(
-                              '极速下载新版 (自建加速镜像)',
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: gold,
-                              foregroundColor: isDark ? AppTheme.inkBlack : Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: jade.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: jade.withValues(alpha: 0.25)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: jade, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        '当前已是最新版本 ($currentVer)',
-                        style: TextStyle(fontSize: 12.5, color: jade, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+              ),
 
-            // 3. 历史更新日志列表
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(
-                '版本发布记录与更新日志',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: textSecondary,
+            // 2. 新版本卡片（当发现新版时置顶呈现）
+            if (hasNewer) ...[
+              _buildSectionHeader(context, '新版本'),
+              const SizedBox(height: 8),
+              _buildReleaseCard(
+                context,
+                release: latestRelease,
+                isNewVersionHighlight: true,
+              ),
+              const SizedBox(height: 16),
+            ] else if (_releases.isNotEmpty && _errorMessage == null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: jade.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: jade.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: jade, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      '当前已是最新版本',
+                      style: TextStyle(fontSize: 12.5, color: jade, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
+
+            // 3. 历史更新列表
+            _buildSectionHeader(context, '历史更新'),
+            const SizedBox(height: 8),
 
             if (_isLoading && _releases.isEmpty)
               Padding(
@@ -360,14 +370,14 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                       CircularProgressIndicator(strokeWidth: 2.5, color: gold),
                       const SizedBox(height: 12),
                       Text(
-                        '正在获取版本发布记录...',
+                        '正在获取更新日志...',
                         style: TextStyle(fontSize: 12, color: textSecondary),
                       ),
                     ],
                   ),
                 ),
               )
-            else if (_releases.isEmpty && _errorMessage == null)
+            else if (historyReleases.isEmpty && _errorMessage == null)
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -381,109 +391,296 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                     Icon(Icons.history_rounded, size: 36, color: gold.withValues(alpha: 0.5)),
                     const SizedBox(height: 8),
                     Text(
-                      '暂无发布记录',
+                      '暂无历史更新记录',
                       style: TextStyle(fontSize: 13, color: textPrimary, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '点击上方「检查更新」按钮获取远端发布历史',
+                      '点击上方「检查更新」按钮获取发布日志',
                       style: TextStyle(fontSize: 11.5, color: textSecondary),
                     ),
                   ],
                 ),
               )
             else
-              ...List.generate(_releases.length, (index) {
-                final release = _releases[index];
-                final isLatest = index == 0;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: AppTheme.getCardShadow(context),
-                  ),
-                  child: Material(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(18),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                release.name.isNotEmpty ? release.name : release.tagName,
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: textPrimary,
-                                ),
-                              ),
-                              if (isLatest) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: gold.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: gold.withValues(alpha: 0.3), width: 0.8),
-                                  ),
-                                  child: Text(
-                                    '最新',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: gold),
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
-                              if (release.publishedAt.isNotEmpty)
-                                Text(
-                                  _formatDate(release.publishedAt),
-                                  style: TextStyle(fontSize: 11, color: textSecondary),
-                                ),
-                            ],
-                          ),
-                          if (release.body.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              release.body,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textPrimary,
-                                height: 1.45,
-                              ),
-                            ),
-                          ],
-                          if (release.androidDownloadUrl != null) ...[
-                            const SizedBox(height: 10),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: OutlinedButton.icon(
-                                onPressed: () => _onDownloadRelease(
-                                  release.androidDownloadUrl!,
-                                  release.tagName,
-                                ),
-                                icon: Icon(Icons.download_rounded, size: 14, color: gold),
-                                label: Text(
-                                  '下载安装包 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
-                                  style: TextStyle(fontSize: 11, color: gold, fontWeight: FontWeight.bold),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: gold.withValues(alpha: 0.4)),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+              ...List.generate(historyReleases.length, (index) {
+                final release = historyReleases[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildReleaseCard(
+                    context,
+                    release: release,
+                    isNewVersionHighlight: false,
                   ),
                 );
               }),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    final textSecondary = AppTheme.getTextSecondary(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+          color: textSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReleaseCard(
+    BuildContext context, {
+    required GitHubRelease release,
+    required bool isNewVersionHighlight,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gold = AppTheme.getGoldColor(context);
+    final textPrimary = AppTheme.getTextPrimary(context);
+    final textSecondary = AppTheme.getTextSecondary(context);
+    final cardBg = AppTheme.getCardColor(context);
+    final jade = isDark ? AppTheme.jadeGreen : AppTheme.lightJadeGreen;
+    final cinnabar = isDark ? AppTheme.cinnabarRed : AppTheme.lightCinnabarRed;
+
+    final parsedNotes = ParsedChangelog.parse(release.body);
+    final title = _formatReleaseName(release.tagName);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isNewVersionHighlight ? gold.withValues(alpha: 0.08) : null,
+        borderRadius: BorderRadius.circular(18),
+        border: isNewVersionHighlight
+            ? Border.all(color: gold.withValues(alpha: 0.35), width: 1.2)
+            : null,
+        boxShadow: AppTheme.getCardShadow(context),
+      ),
+      child: Material(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题与发布日期
+              Row(
+                children: [
+                  Icon(
+                    isNewVersionHighlight ? Icons.new_releases_rounded : Icons.history_edu_rounded,
+                    color: gold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                  if (isNewVersionHighlight) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: gold.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: gold.withValues(alpha: 0.3), width: 0.8),
+                      ),
+                      child: Text(
+                        '最新',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: gold),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (release.publishedAt.isNotEmpty)
+                    Text(
+                      _formatDate(release.publishedAt),
+                      style: TextStyle(fontSize: 11, color: textSecondary),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // 分类解析与 Markdown 渲染
+              if (parsedNotes.hasCategorized) ...[
+                // 1. 功能更新
+                if (parsedNotes.features.isNotEmpty) ...[
+                  _buildCategoryBadge(
+                    icon: Icons.auto_awesome_rounded,
+                    label: '功能更新',
+                    color: jade,
+                  ),
+                  const SizedBox(height: 6),
+                  _buildMarkdownContent(
+                    context,
+                    parsedNotes.features.map((f) => '- $f').join('\n'),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                // 2. 问题修复
+                if (parsedNotes.fixes.isNotEmpty) ...[
+                  _buildCategoryBadge(
+                    icon: Icons.build_circle_rounded,
+                    label: '问题修复',
+                    color: cinnabar,
+                  ),
+                  const SizedBox(height: 6),
+                  _buildMarkdownContent(
+                    context,
+                    parsedNotes.fixes.map((f) => '- $f').join('\n'),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                // 3. 其他优化
+                if (parsedNotes.others.isNotEmpty) ...[
+                  _buildCategoryBadge(
+                    icon: Icons.tune_rounded,
+                    label: '其他优化',
+                    color: textSecondary,
+                  ),
+                  const SizedBox(height: 6),
+                  _buildMarkdownContent(
+                    context,
+                    parsedNotes.others.map((f) => '- $f').join('\n'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ] else if (release.body.isNotEmpty) ...[
+                // 未识别到前缀时直接完整 Markdown 渲染
+                _buildMarkdownContent(context, release.body),
+                const SizedBox(height: 8),
+              ],
+
+              // 下载按钮
+              if (release.androidDownloadUrl != null) ...[
+                const SizedBox(height: 4),
+                if (isNewVersionHighlight)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _onDownloadRelease(
+                        release.androidDownloadUrl!,
+                        release.tagName,
+                      ),
+                      icon: const Icon(Icons.speed_rounded, size: 16),
+                      label: Text(
+                        '极速下载新版 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: gold,
+                        foregroundColor: isDark ? AppTheme.inkBlack : Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  )
+                else
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _onDownloadRelease(
+                        release.androidDownloadUrl!,
+                        release.tagName,
+                      ),
+                      icon: Icon(Icons.download_rounded, size: 14, color: gold),
+                      label: Text(
+                        '下载安装包 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
+                        style: TextStyle(fontSize: 11, color: gold, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: gold.withValues(alpha: 0.4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryBadge({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkdownContent(BuildContext context, String markdownData) {
+    final textPrimary = AppTheme.getTextPrimary(context);
+    final textSecondary = AppTheme.getTextSecondary(context);
+    final gold = AppTheme.getGoldColor(context);
+
+    return MarkdownBody(
+      data: markdownData,
+      selectable: false,
+      styleSheet: MarkdownStyleSheet(
+        p: TextStyle(
+          fontSize: 12.5,
+          color: textPrimary,
+          height: 1.45,
+        ),
+        listBullet: TextStyle(
+          fontSize: 12.5,
+          color: gold,
+          fontWeight: FontWeight.bold,
+        ),
+        strong: TextStyle(
+          fontSize: 12.5,
+          color: gold,
+          fontWeight: FontWeight.bold,
+        ),
+        code: TextStyle(
+          fontSize: 11.5,
+          color: gold,
+          backgroundColor: textSecondary.withValues(alpha: 0.08),
+          fontFamily: 'monospace',
+        ),
+        blockquote: TextStyle(
+          fontSize: 12,
+          color: textSecondary,
+          fontStyle: FontStyle.italic,
         ),
       ),
     );
