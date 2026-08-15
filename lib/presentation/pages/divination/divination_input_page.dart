@@ -165,7 +165,6 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Material(
                             color: cardBg,
-                            borderRadius: BorderRadius.circular(12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                               side: BorderSide(color: border),
