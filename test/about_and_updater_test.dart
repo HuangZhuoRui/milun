@@ -33,10 +33,12 @@ void main() {
       expect(accelerated, 'https://update.vincenthzr.org:8443/download/HuangZhuoRui/milun/releases/download/v1.0.0/milun-v1.0.0.apk');
     });
 
-    test('ParsedChangelog 正确将 feat 与 fix 分离并分类', () {
+    test('ParsedChangelog 正确将 feat 与 fix 分离并过滤 tmp 临时提交', () {
       const rawChangelog = '''
 ### 弥纶 Android v1.0.0 更新内容
 - feat: 新增关于与设置页面
+- tmp: 测试临时提交
+- tmp 触发更新
 - feat 支持自建加速节点
 - fix: 修复深色模式边框问题
 - fix 修复时辰表显示异常

@@ -37,6 +37,11 @@ class ParsedChangelog {
       }
 
       final lower = content.toLowerCase();
+      if (lower.startsWith('tmp:') || lower.startsWith('tmp：') || lower.startsWith('tmp ') ||
+          lower.startsWith('temp:') || lower.startsWith('temp：') || lower.startsWith('temp ')) {
+        continue;
+      }
+
       if (lower.startsWith('feat:') || lower.startsWith('feat：')) {
         features.add(content.substring(5).trim());
       } else if (lower.startsWith('feat ')) {

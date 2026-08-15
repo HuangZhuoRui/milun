@@ -45,9 +45,9 @@ jobs:
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$PREV_TAG" ]; then
-            LOGS=$(git log --no-merges --pretty=format:"- %s")
+            LOGS=$(git log --no-merges --pretty=format:"- %s" | grep -v -i -E '^- *(tmp:|tmp：|tmp |temp:|temp )' || echo "")
           else
-            LOGS=$(git log $PREV_TAG..HEAD --no-merges --pretty=format:"- %s")
+            LOGS=$(git log $PREV_TAG..HEAD --no-merges --pretty=format:"- %s" | grep -v -i -E '^- *(tmp:|tmp：|tmp |temp:|temp )' || echo "")
           fi
 
           echo "### 弥纶 (MiLun) Android ${{ steps.check_version.outputs.tag }} 更新内容" > changelog.txt
