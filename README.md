@@ -2,10 +2,6 @@
 ### —— 语出《周易·系辞》“易与天地准，故能弥纶天地之道”
 
 <p align="center">
-  <img src="assets/images/deepseek.svg" width="76" height="76" alt="弥纶 Logo" />
-</p>
-
-<p align="center">
   <strong>弥纶天地 · 洞见真我 · 融汇大衍筮法与 DeepSeek 前沿认知智能</strong>
 </p>
 
