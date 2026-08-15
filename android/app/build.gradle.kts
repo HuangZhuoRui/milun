@@ -38,14 +38,22 @@ android {
 
     signingConfigs {
         create("releaseKey") {
-            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "suse-app-key"
-            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "LinuxisUbuntu18"
-            storeFile = if (keystoreProperties.containsKey("storeFile")) {
-                file(keystoreProperties.getProperty("storeFile"))
+            keyAlias = System.getenv("KEY_ALIAS")
+                ?: keystoreProperties.getProperty("keyAlias")
+                ?: "suse-app-key"
+            keyPassword = System.getenv("KEY_PASSWORD")
+                ?: keystoreProperties.getProperty("keyPassword")
+                ?: "LinuxisUbuntu18"
+            val customStorePath = System.getenv("KEYSTORE_FILE_PATH")
+                ?: keystoreProperties.getProperty("storeFile")
+            storeFile = if (customStorePath != null) {
+                file(customStorePath)
             } else {
                 file("/Users/vincent/Desktop/SUSE-APP-Key/APP-Key.jks")
             }
-            storePassword = keystoreProperties.getProperty("storePassword") ?: "LinuxisUbuntu18"
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: keystoreProperties.getProperty("storePassword")
+                ?: "LinuxisUbuntu18"
         }
     }
 
