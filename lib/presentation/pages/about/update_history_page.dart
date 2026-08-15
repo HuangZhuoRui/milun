@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/updater/app_updater_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -107,29 +108,51 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
     }
   }
 
-  void _onDownloadRelease(String directUrl, String tagName) {
-    final acceleratedUrl = AppUpdaterService.instance.getAcceleratedDownloadUrl(directUrl);
+  Future<void> _onDownload({
+    required String directUrl,
+    required String tagName,
+    required bool useProxy,
+  }) async {
+    final targetUrl = useProxy
+        ? AppUpdaterService.instance.getAcceleratedDownloadUrl(directUrl)
+        : directUrl;
 
-    Clipboard.setData(ClipboardData(text: acceleratedUrl));
+    await Clipboard.setData(ClipboardData(text: targetUrl));
+
+    final uri = Uri.tryParse(targetUrl);
+    bool launched = false;
+    if (uri != null) {
+      try {
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        debugPrint('无法调起外部下载: $e');
+      }
+    }
+
+    if (!mounted) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gold = AppTheme.getGoldColor(context);
+    final cardBg = AppTheme.getCardColor(context);
+    final textPrimary = AppTheme.getTextPrimary(context);
+    final textSecondary = AppTheme.getTextSecondary(context);
 
     showDialog(
       context: context,
       builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        final gold = AppTheme.getGoldColor(ctx);
-        final cardBg = AppTheme.getCardColor(ctx);
-        final textPrimary = AppTheme.getTextPrimary(ctx);
-        final textSecondary = AppTheme.getTextSecondary(ctx);
-
         return AlertDialog(
           backgroundColor: cardBg,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
-              Icon(Icons.rocket_launch_rounded, color: gold, size: 22),
+              Icon(
+                useProxy ? Icons.rocket_launch_rounded : Icons.public_rounded,
+                color: gold,
+                size: 22,
+              ),
               const SizedBox(width: 8),
               Text(
-                '版本 $tagName 加速下载',
+                useProxy ? '代理加速下载' : '正常直连下载',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
               ),
             ],
@@ -139,7 +162,11 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '已为您生成自建高速节点镜像链接，并自动复制到剪贴板。您可在浏览器或下载工具中直接粘贴下载：',
+                launched
+                    ? (useProxy
+                        ? '已为您拉起浏览器并开启自建高速代理镜像下载，链接已同步复制到剪贴板：'
+                        : '已为您拉起浏览器并开启 GitHub 官方源下载，链接已同步复制到剪贴板：')
+                    : '已复制下载链接到剪贴板，您可在浏览器或下载工具中直接粘贴开始下载：',
                 style: TextStyle(fontSize: 13, color: textSecondary, height: 1.5),
               ),
               const SizedBox(height: 12),
@@ -150,7 +177,7 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: SelectableText(
-                  acceleratedUrl,
+                  targetUrl,
                   style: TextStyle(fontSize: 11, color: gold, fontFamily: 'monospace'),
                 ),
               ),
@@ -564,50 +591,95 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
                 const SizedBox(height: 8),
               ],
 
-              // 下载按钮
+              // 双选项下载按钮：代理加速下载 + 正常直连下载
               if (release.androidDownloadUrl != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 if (isNewVersionHighlight)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _onDownloadRelease(
-                        release.androidDownloadUrl!,
-                        release.tagName,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _onDownload(
+                            directUrl: release.androidDownloadUrl!,
+                            tagName: release.tagName,
+                            useProxy: true,
+                          ),
+                          icon: const Icon(Icons.rocket_launch_rounded, size: 15),
+                          label: Text(
+                            '代理加速下载 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: gold,
+                            foregroundColor: isDark ? AppTheme.inkBlack : Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
                       ),
-                      icon: const Icon(Icons.speed_rounded, size: 16),
-                      label: Text(
-                        '极速下载新版 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _onDownload(
+                            directUrl: release.androidDownloadUrl!,
+                            tagName: release.tagName,
+                            useProxy: false,
+                          ),
+                          icon: Icon(Icons.public_rounded, size: 15, color: gold),
+                          label: const Text(
+                            '正常直连下载',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: gold,
+                            side: BorderSide(color: gold.withValues(alpha: 0.5)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: gold,
-                        foregroundColor: isDark ? AppTheme.inkBlack : Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
+                    ],
                   )
                 else
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _onDownloadRelease(
-                        release.androidDownloadUrl!,
-                        release.tagName,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _onDownload(
+                          directUrl: release.androidDownloadUrl!,
+                          tagName: release.tagName,
+                          useProxy: false,
+                        ),
+                        icon: Icon(Icons.public_rounded, size: 13, color: textSecondary),
+                        label: Text('正常下载', style: TextStyle(fontSize: 11, color: textSecondary)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: textSecondary.withValues(alpha: 0.3)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
                       ),
-                      icon: Icon(Icons.download_rounded, size: 14, color: gold),
-                      label: Text(
-                        '下载安装包 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
-                        style: TextStyle(fontSize: 11, color: gold, fontWeight: FontWeight.bold),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _onDownload(
+                          directUrl: release.androidDownloadUrl!,
+                          tagName: release.tagName,
+                          useProxy: true,
+                        ),
+                        icon: const Icon(Icons.rocket_launch_rounded, size: 13),
+                        label: Text(
+                          '加速下载 ${release.androidAsset != null ? "(${release.androidAsset!.formattedSize})" : ""}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: gold,
+                          foregroundColor: isDark ? AppTheme.inkBlack : Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: gold.withValues(alpha: 0.4)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      ),
-                    ),
+                    ],
                   ),
               ],
             ],
