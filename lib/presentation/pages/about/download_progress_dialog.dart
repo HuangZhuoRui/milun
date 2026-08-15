@@ -48,6 +48,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
 
   File? _downloadedFile;
   String? _errorMessage;
+  bool _isUserCancelled = false;
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
 
   Future<void> _startDownload() async {
     setState(() {
+      _isUserCancelled = false;
       _errorMessage = null;
       _downloadedFile = null;
       _progress = const DownloadProgress(
@@ -79,7 +81,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
         downloadUrl: targetUrl,
         fileName: fileName,
         onProgress: (p) {
-          if (mounted) {
+          if (mounted && !_isUserCancelled) {
             setState(() {
               _progress = p;
             });
@@ -87,13 +89,13 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
         },
       );
 
-      if (mounted && file != null) {
+      if (mounted && file != null && !_isUserCancelled) {
         setState(() {
           _downloadedFile = file;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && !_isUserCancelled) {
         setState(() {
           _errorMessage = '下载失败: $e';
         });
@@ -102,8 +104,11 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
   }
 
   void _onCancel() {
+    _isUserCancelled = true;
     AppUpdaterService.instance.cancelDownload();
-    Navigator.of(context).pop();
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _onInstall() {

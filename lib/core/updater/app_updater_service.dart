@@ -131,13 +131,18 @@ class AppUpdaterService {
 
   HttpClient? _currentDownloadClient;
   bool _isDownloading = false;
+  bool _isCancelled = false;
   bool get isDownloading => _isDownloading;
+  bool get isCancelled => _isCancelled;
 
   /// 取消当前下载
   void cancelDownload() {
-    _currentDownloadClient?.close(force: true);
-    _currentDownloadClient = null;
+    _isCancelled = true;
     _isDownloading = false;
+    try {
+      _currentDownloadClient?.close(force: true);
+    } catch (_) {}
+    _currentDownloadClient = null;
   }
 
   /// 在应用内直接流式下载 Release APK 并实时上报进度
@@ -147,14 +152,17 @@ class AppUpdaterService {
     required void Function(DownloadProgress progress) onProgress,
   }) async {
     _isDownloading = true;
+    _isCancelled = false;
     final client = HttpClient();
     _currentDownloadClient = client;
     client.badCertificateCallback = (cert, host, port) => true;
 
+    File? targetFile;
+
     try {
       final dir = await getTemporaryDirectory();
       final safeFileName = fileName.endsWith('.apk') ? fileName : '$fileName.apk';
-      final targetFile = File('${dir.path}/$safeFileName');
+      targetFile = File('${dir.path}/$safeFileName');
       if (await targetFile.exists()) {
         await targetFile.delete();
       }
@@ -174,7 +182,7 @@ class AppUpdaterService {
       final stopwatch = Stopwatch()..start();
 
       await for (final chunk in response) {
-        if (!_isDownloading) {
+        if (_isCancelled || !_isDownloading) {
           await sink.close();
           if (await targetFile.exists()) {
             await targetFile.delete();
@@ -201,6 +209,13 @@ class AppUpdaterService {
       await sink.flush();
       await sink.close();
 
+      if (_isCancelled || !_isDownloading) {
+        if (await targetFile.exists()) {
+          await targetFile.delete();
+        }
+        return null;
+      }
+
       onProgress(DownloadProgress(
         receivedBytes: receivedBytes,
         totalBytes: receivedBytes,
@@ -212,8 +227,17 @@ class AppUpdaterService {
       _isDownloading = false;
       return targetFile;
     } catch (e) {
+      if (_isCancelled) {
+        try {
+          if (targetFile != null && await targetFile.exists()) {
+            await targetFile.delete();
+          }
+        } catch (_) {}
+        return null;
+      }
+
       _isDownloading = false;
-      onProgress(DownloadProgress(
+      onProgress(const DownloadProgress(
         receivedBytes: 0,
         totalBytes: 0,
         progress: 0.0,
@@ -223,7 +247,9 @@ class AppUpdaterService {
       rethrow;
     } finally {
       client.close();
-      _currentDownloadClient = null;
+      if (_currentDownloadClient == client) {
+        _currentDownloadClient = null;
+      }
     }
   }
 
