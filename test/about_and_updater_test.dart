@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whoami/core/updater/app_updater_service.dart';
 import 'package:whoami/presentation/pages/about/about_page.dart';
+import 'package:whoami/presentation/pages/about/download_progress_dialog.dart';
 import 'package:whoami/presentation/pages/about/update_history_page.dart';
 import 'package:whoami/presentation/theme/app_theme.dart';
 
@@ -56,6 +57,21 @@ void main() {
       expect(parsed.others.length, 1);
       expect(parsed.others[0], 'chore: 优化构建配置');
     });
+
+    test('DownloadProgress 进度模型计算与格式化正确', () {
+      const progress = DownloadProgress(
+        receivedBytes: 15 * 1024 * 1024,
+        totalBytes: 30 * 1024 * 1024,
+        progress: 0.5,
+        speedBytesPerSec: 2.5 * 1024 * 1024,
+        status: 'downloading',
+      );
+
+      expect(progress.percentage, 50);
+      expect(progress.formattedReceived, '15.0 MB');
+      expect(progress.formattedTotal, '30.0 MB');
+      expect(progress.formattedSpeed, '2.5 MB/s');
+    });
   });
 
   group('AboutPage 关于与设置页面 Widget 测试', () {
@@ -105,6 +121,26 @@ void main() {
       expect(find.text('当前版本'), findsOneWidget);
       expect(find.text('检查更新'), findsOneWidget);
       expect(find.text('历史更新'), findsOneWidget);
+    });
+
+    testWidgets('DownloadProgressDialog 正常渲染下载弹窗UI与取消按钮', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const Scaffold(
+            body: DownloadProgressDialog(
+              directUrl: 'https://example.com/test.apk',
+              tagName: 'v1.0.0',
+              useProxy: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // 验证标题与通道 Badge
+      expect(find.text('🚀 代理加速'), findsOneWidget);
+      expect(find.text('取消下载'), findsOneWidget);
     });
   });
 }

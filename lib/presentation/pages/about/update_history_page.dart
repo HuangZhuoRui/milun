@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/updater/app_updater_service.dart';
 import '../../theme/app_theme.dart';
+import 'download_progress_dialog.dart';
 
 /// 更新日志结构化解析模型
 class ParsedChangelog {
@@ -108,89 +107,16 @@ class _UpdateHistoryPageState extends State<UpdateHistoryPage> {
     }
   }
 
-  Future<void> _onDownload({
+  void _onDownload({
     required String directUrl,
     required String tagName,
     required bool useProxy,
-  }) async {
-    final targetUrl = useProxy
-        ? AppUpdaterService.instance.getAcceleratedDownloadUrl(directUrl)
-        : directUrl;
-
-    await Clipboard.setData(ClipboardData(text: targetUrl));
-
-    final uri = Uri.tryParse(targetUrl);
-    bool launched = false;
-    if (uri != null) {
-      try {
-        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } catch (e) {
-        debugPrint('无法调起外部下载: $e');
-      }
-    }
-
-    if (!mounted) return;
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final gold = AppTheme.getGoldColor(context);
-    final cardBg = AppTheme.getCardColor(context);
-    final textPrimary = AppTheme.getTextPrimary(context);
-    final textSecondary = AppTheme.getTextSecondary(context);
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: cardBg,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Icon(
-                useProxy ? Icons.rocket_launch_rounded : Icons.public_rounded,
-                color: gold,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                useProxy ? '代理加速下载' : '正常直连下载',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                launched
-                    ? (useProxy
-                        ? '已为您拉起浏览器并开启自建高速代理镜像下载，链接已同步复制到剪贴板：'
-                        : '已为您拉起浏览器并开启 GitHub 官方源下载，链接已同步复制到剪贴板：')
-                    : '已复制下载链接到剪贴板，您可在浏览器或下载工具中直接粘贴开始下载：',
-                style: TextStyle(fontSize: 13, color: textSecondary, height: 1.5),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black26 : const Color(0xFFF3EDE2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: SelectableText(
-                  targetUrl,
-                  style: TextStyle(fontSize: 11, color: gold, fontFamily: 'monospace'),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('我知道了', style: TextStyle(color: gold)),
-            ),
-          ],
-        );
-      },
+  }) {
+    DownloadProgressDialog.show(
+      context,
+      directUrl: directUrl,
+      tagName: tagName,
+      useProxy: useProxy,
     );
   }
 

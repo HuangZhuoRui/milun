@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// GitHub Release 实体模型
 class GitHubRelease {
@@ -86,6 +88,35 @@ class GitHubAsset {
   }
 }
 
+/// 下载进度实时状态模型
+class DownloadProgress {
+  final int receivedBytes;
+  final int totalBytes;
+  final double progress; // 0.0 ~ 1.0
+  final double speedBytesPerSec;
+  final String status; // 'downloading', 'completed', 'failed', 'canceled'
+
+  const DownloadProgress({
+    required this.receivedBytes,
+    required this.totalBytes,
+    required this.progress,
+    required this.speedBytesPerSec,
+    required this.status,
+  });
+
+  String get formattedReceived => _formatBytes(receivedBytes);
+  String get formattedTotal => _formatBytes(totalBytes);
+  String get formattedSpeed => '${_formatBytes(speedBytesPerSec.toInt())}/s';
+  int get percentage => (progress * 100).clamp(0, 100).toInt();
+
+  static String _formatBytes(int bytes) {
+    if (bytes <= 0) return '0 B';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
 /// 应用版本更新与自建服务器加速服务
 class AppUpdaterService {
   AppUpdaterService._();
@@ -97,6 +128,117 @@ class AppUpdaterService {
 
   /// 自建加速代理基础域名
   static const String _accelerateBaseUrl = 'https://update.vincenthzr.org:8443';
+
+  HttpClient? _currentDownloadClient;
+  bool _isDownloading = false;
+  bool get isDownloading => _isDownloading;
+
+  /// 取消当前下载
+  void cancelDownload() {
+    _currentDownloadClient?.close(force: true);
+    _currentDownloadClient = null;
+    _isDownloading = false;
+  }
+
+  /// 在应用内直接流式下载 Release APK 并实时上报进度
+  Future<File?> downloadReleaseApk({
+    required String downloadUrl,
+    required String fileName,
+    required void Function(DownloadProgress progress) onProgress,
+  }) async {
+    _isDownloading = true;
+    final client = HttpClient();
+    _currentDownloadClient = client;
+    client.badCertificateCallback = (cert, host, port) => true;
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final safeFileName = fileName.endsWith('.apk') ? fileName : '$fileName.apk';
+      final targetFile = File('${dir.path}/$safeFileName');
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+
+      final request = await client.getUrl(Uri.parse(downloadUrl));
+      request.headers.set('User-Agent', 'MiLun-App/1.0');
+      request.headers.set('Accept', 'application/octet-stream');
+
+      final response = await request.close();
+      if (response.statusCode != 200 && response.statusCode != 302 && response.statusCode != 301) {
+        throw Exception('下载失败，HTTP状态码: ${response.statusCode}');
+      }
+
+      final totalBytes = response.contentLength;
+      final sink = targetFile.openWrite();
+      int receivedBytes = 0;
+      final stopwatch = Stopwatch()..start();
+
+      await for (final chunk in response) {
+        if (!_isDownloading) {
+          await sink.close();
+          if (await targetFile.exists()) {
+            await targetFile.delete();
+          }
+          return null;
+        }
+
+        receivedBytes += chunk.length;
+        sink.add(chunk);
+
+        final elapsedSec = stopwatch.elapsedMilliseconds / 1000.0;
+        final speed = elapsedSec > 0 ? (receivedBytes / elapsedSec) : 0.0;
+        final progressRatio = totalBytes > 0 ? (receivedBytes / totalBytes) : 0.0;
+
+        onProgress(DownloadProgress(
+          receivedBytes: receivedBytes,
+          totalBytes: totalBytes,
+          progress: progressRatio,
+          speedBytesPerSec: speed,
+          status: 'downloading',
+        ));
+      }
+
+      await sink.flush();
+      await sink.close();
+
+      onProgress(DownloadProgress(
+        receivedBytes: receivedBytes,
+        totalBytes: receivedBytes,
+        progress: 1.0,
+        speedBytesPerSec: 0,
+        status: 'completed',
+      ));
+
+      _isDownloading = false;
+      return targetFile;
+    } catch (e) {
+      _isDownloading = false;
+      onProgress(DownloadProgress(
+        receivedBytes: 0,
+        totalBytes: 0,
+        progress: 0.0,
+        speedBytesPerSec: 0,
+        status: 'failed',
+      ));
+      rethrow;
+    } finally {
+      client.close();
+      _currentDownloadClient = null;
+    }
+  }
+
+  /// 调起系统安装器安装 APK
+  Future<void> installApk(File apkFile) async {
+    try {
+      final result = await OpenFilex.open(
+        apkFile.path,
+        type: 'application/vnd.android.package-archive',
+      );
+      debugPrint('调起安装程序结果: ${result.type} - ${result.message}');
+    } catch (e) {
+      debugPrint('调起安装程序失败: $e');
+    }
+  }
 
   /// 获取仓库的所有 Releases（优先使用自建加速接口，失败则自动直连 GitHub）
   Future<List<GitHubRelease>> fetchReleases({
@@ -131,7 +273,6 @@ class AppUpdaterService {
   Future<List<GitHubRelease>?> _requestReleases(Uri uri) async {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 10);
-    // 允许自建服务的证书通过
     client.badCertificateCallback = (cert, host, port) => true;
 
     try {
@@ -154,8 +295,6 @@ class AppUpdaterService {
   }
 
   /// 构建自建服务器加速下载链接
-  /// 将 https://github.com/HuangZhuoRui/milun/releases/download/...
-  /// 转换为 https://update.vincenthzr.org:8443/download/HuangZhuoRui/milun/releases/download/...
   String getAcceleratedDownloadUrl(String directUrl) {
     if (directUrl.isEmpty) return directUrl;
 
