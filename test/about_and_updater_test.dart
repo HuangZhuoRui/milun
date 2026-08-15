@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whoami/core/updater/app_updater_service.dart';
 import 'package:whoami/presentation/pages/about/about_page.dart';
+import 'package:whoami/presentation/pages/about/update_history_page.dart';
 import 'package:whoami/presentation/theme/app_theme.dart';
 
 void main() {
@@ -33,7 +34,7 @@ void main() {
   });
 
   group('AboutPage 关于与设置页面 Widget 测试', () {
-    testWidgets('正常渲染品牌、系统配置与检查更新卡片', (WidgetTester tester) async {
+    testWidgets('正常渲染纯文字品牌 Header、系统配置与更新入口，并支持跳转到独立更新页面', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
@@ -42,7 +43,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 验证品牌与出处
+      // 验证品牌纯文字与出处
       expect(find.text('弥纶 · MiLun'), findsOneWidget);
       expect(find.textContaining('易与天地准，故能弥纶天地之道'), findsOneWidget);
       expect(find.textContaining('当前版本:'), findsOneWidget);
@@ -50,9 +51,35 @@ void main() {
       // 验证 DeepSeek 系统配置入口
       expect(find.text('DeepSeek 认知智能配置'), findsOneWidget);
 
-      // 验证版本检查与更新入口
-      expect(find.text('版本检查与加速分发'), findsOneWidget);
+      // 验证独立检查更新入口
+      expect(find.text('检查更新与历史'), findsOneWidget);
+      expect(find.text('检查新版本并浏览历史版本更新日志'), findsOneWidget);
+
+      // 点击跳转至独立更新页面
+      await tester.tap(find.text('检查更新与历史'));
+      await tester.pumpAndSettle();
+
+      // 验证已到达 UpdateHistoryPage
+      expect(find.byType(UpdateHistoryPage), findsOneWidget);
+      expect(find.text('当前安装版本'), findsOneWidget);
+      expect(find.text('版本发布记录与更新日志'), findsOneWidget);
+    });
+  });
+
+  group('UpdateHistoryPage 独立更新与历史发布页面测试', () {
+    testWidgets('正常渲染当前版本卡片、检查更新按钮与历史日志列表', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: const UpdateHistoryPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('检查更新与历史'), findsOneWidget);
+      expect(find.text('当前安装版本'), findsOneWidget);
       expect(find.text('检查更新'), findsOneWidget);
+      expect(find.text('版本发布记录与更新日志'), findsOneWidget);
     });
   });
 }
