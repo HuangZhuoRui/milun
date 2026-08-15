@@ -36,7 +36,7 @@ graph TD
     Root[弥纶 · MiLun] --> Mod1[本命排盘 · 五维全息]
     Root --> Mod2[今日运势 · 每日一卦]
     Root --> Mod3[易经宝典 · 双轨罗盘]
-    Root --> Mod4[档案命簿 · 多人合盘]
+    Root --> Mod4[关于设置 · 极速更新]
     Root --> Mod5[DeepSeek AI · 易学明镜]
 
     Mod1 --> F1[四柱干支 / 纳音 / 日元五行]
@@ -49,13 +49,14 @@ graph TD
     Mod3 --> F6[文王六十四卦古经与十翼全解]
     Mod3 --> F7[半圆同心双轨八卦罗盘检索]
 
-    Mod4 --> F8[主生辰 SSOT 响应式数据源]
-    Mod4 --> F9[左滑设为主生辰 / 快捷合盘勾选]
+    Mod4 --> F8[DeepSeek API 密钥与模型参数配置]
+    Mod4 --> F9[自建高速节点镜像检查与下载更新]
+    Mod4 --> F10[GitHub CI 自动编译流水线]
 
-    Mod5 --> F10[DeepSeek 官方 SVG 灵动鲸鱼]
-    Mod5 --> F11[深度思考模式 Thinking Mode 开关]
-    Mod5 --> F12[多会话历史侧栏 / 空会话延迟入库]
-    Mod5 --> F13[全屏穿透滚动 & 毛玻璃悬浮输入框]
+    Mod5 --> F11[DeepSeek 官方 SVG 灵动鲸鱼]
+    Mod5 --> F12[深度思考模式 Thinking Mode 开关]
+    Mod5 --> F13[多会话历史侧栏 / 空会话延迟入库]
+    Mod5 --> F14[全屏穿透滚动 & 毛玻璃悬浮输入框]
 ```
 
 ---
@@ -88,10 +89,12 @@ graph TD
 
 ---
 
-### 4. 👥 档案命簿与多人管理 (Multi-Profile SSOT)
-- **单一数据源响应式架构 (`ProfileRepository`)**：主生辰档案变更时，全站排盘、运势、AI 载荷实时自动重算联动。
-- **亲友档案管理**：支持无限量录入家人、朋友、合伙人生辰数据，侧滑即可一键设为主生辰或删除。
-- **浑天罗盘日期选择器 (`RotaryDatePickerDialog`)**：独创同心环罗盘交互，自「年份 ➔ 月份 ➔ 日期 ➔ 时辰」逐级旋转确认，支持干支即时变换与公历/农历一键切换。
+### 4. ⚙️ 关于与系统设置 · 极速更新 (About & Fast Updater)
+- **DeepSeek 核心配置**：集中管理 DeepSeek API Key、自定义模型与思考模式（Thinking Mode）。
+- **检查更新与自建节点加速**：
+  - 调用 GitHub Releases API 检索最新版本与更新日志；
+  - **自建高速代理镜像分发**：自动将官方下载地址转换为 `https://update.vincenthzr.org:8443/download/...` 高速节点，畅享秒级下载体验。
+- **易学算法与离线隐私保障**：排盘、日历与易典纯本地离线计算，保护命主隐私。
 
 ---
 

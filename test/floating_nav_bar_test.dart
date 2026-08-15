@@ -18,7 +18,7 @@ void main() {
     expect(find.text('今日卦象'), findsWidgets);
     expect(find.text('本命排盘'), findsWidgets);
     expect(find.text('易经宝典'), findsWidgets);
-    expect(find.text('亲友命簿'), findsWidgets);
+    expect(find.text('关于'), findsWidgets);
 
     // 默认展示 Tab 0 (今日卦象)
     expect(find.text('今日专属流日卦'), findsOneWidget);
@@ -43,16 +43,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // 当前在 Tab 0，点击最末尾的 Tab 3 (亲友命簿)
-    await tester.tap(find.text('亲友命簿'));
+    // 当前在 Tab 0，点击最末尾的 Tab 3 (关于)
+    await tester.tap(find.text('关于'));
 
     // 逐步 pump 验证中间平滑滑翔过渡
     await tester.pump(const Duration(milliseconds: 150));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pumpAndSettle();
 
-    // 验证成功到达 Tab 3 (亲友命簿)
-    expect(find.text('亲友八字命簿'), findsOneWidget);
+    // 验证成功到达 Tab 3 (关于)
+    expect(find.text('弥纶 · MiLun'), findsOneWidget);
 
     // 再从 Tab 3 点击最首部的 Tab 0 (今日卦象)
     await tester.tap(find.text('今日卦象'));

@@ -39,11 +39,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    // 验证四大标签栏：今日卦象、本命排盘、易经宝典、亲友命簿
+    // 验证四大标签栏：今日卦象、本命排盘、易经宝典、关于
     expect(find.text('今日卦象'), findsWidgets);
     expect(find.text('本命排盘'), findsWidgets);
     expect(find.text('易经宝典'), findsWidgets);
-    expect(find.text('亲友命簿'), findsWidgets);
+    expect(find.text('关于'), findsWidgets);
 
     // 默认展示 Tab 0「今日专属流日卦」
     expect(find.text('今日专属流日卦'), findsOneWidget);

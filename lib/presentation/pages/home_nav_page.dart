@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/ai_floating_button.dart';
 import '../widgets/floating_nav_bar.dart';
-import 'archive/archive_list_page.dart';
+import 'about/about_page.dart';
 import 'daily/daily_hexagram_page.dart';
 import 'dictionary/hexagram_dict_page.dart';
 import 'divination/divination_input_page.dart';
@@ -109,7 +109,7 @@ class _HomeNavPageState extends State<HomeNavPage> {
                 child: HexagramDictPage(),
               ),
               const _KeepAliveWrapper(
-                child: ArchiveListPage(),
+                child: AboutPage(),
               ),
             ],
           ),
@@ -147,9 +147,9 @@ class _HomeNavPageState extends State<HomeNavPage> {
                   label: '易经宝典',
                 ),
                 FloatingNavItem(
-                  icon: Icons.people_alt_outlined,
-                  activeIcon: Icons.people_alt,
-                  label: '亲友命簿',
+                  icon: Icons.tune_outlined,
+                  activeIcon: Icons.tune_rounded,
+                  label: '关于',
                 ),
               ],
             ),
