@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// GitHub Release 实体模型
@@ -122,9 +123,25 @@ class AppUpdaterService {
   AppUpdaterService._();
   static final AppUpdaterService instance = AppUpdaterService._();
 
-  /// 当前应用版本号
-  static const String currentAppVersion = '1.0.0';
-  static const String currentBuildNumber = '1';
+  /// 动态应用版本号（从平台底层动态读取，默认 fallback 为 1.1.0）
+  static String currentAppVersion = '1.1.0';
+  static String currentBuildNumber = '2';
+
+  /// 初始化动态版本信息（从 APK 底层动态读取，保证与平台安装包一致）
+  Future<void> init() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (packageInfo.version.isNotEmpty) {
+        currentAppVersion = packageInfo.version;
+      }
+      if (packageInfo.buildNumber.isNotEmpty) {
+        currentBuildNumber = packageInfo.buildNumber;
+      }
+      debugPrint('已动态获取应用版本: $currentAppVersion+$currentBuildNumber');
+    } catch (e) {
+      debugPrint('获取平台应用版本失败，使用默认版本: $e');
+    }
+  }
 
   /// 自建加速代理基础域名
   static const String _accelerateBaseUrl = 'https://update.vincenthzr.org:8443';

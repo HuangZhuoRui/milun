@@ -89,7 +89,7 @@ void main() {
       // 验证品牌纯文字与出处
       expect(find.text('弥纶 · MiLun'), findsOneWidget);
       expect(find.textContaining('易与天地准，故能弥纶天地之道'), findsOneWidget);
-      expect(find.text('当前版本: v1.0.0'), findsOneWidget);
+      expect(find.text('当前版本: v${AppUpdaterService.currentAppVersion}'), findsOneWidget);
 
       // 验证 DeepSeek 系统配置入口
       expect(find.text('DeepSeek 认知智能配置'), findsOneWidget);
