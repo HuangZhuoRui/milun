@@ -21,8 +21,11 @@ class UserProfile {
   /// 是否已知确切时辰
   final bool isHourKnown;
 
-  /// 出生地域/城市
+  /// 出生地域/城市名称（如「成渝 (104.1°E)」）
   final String? birthCity;
+
+  /// 出生地地理经度（用于真太阳时精准校准）
+  final double? longitude;
 
   /// 档案备注说明
   final String notes;
@@ -39,6 +42,7 @@ class UserProfile {
     required this.hourIndex,
     required this.isHourKnown,
     this.birthCity,
+    this.longitude,
     required this.notes,
     required this.createdAt,
   });
@@ -53,6 +57,7 @@ class UserProfile {
       hourIndex: json['hourIndex'] as int? ?? 0,
       isHourKnown: json['isHourKnown'] as bool? ?? true,
       birthCity: json['birthCity'] as String?,
+      longitude: (json['longitude'] as num?)?.toDouble(),
       notes: json['notes'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
@@ -67,7 +72,36 @@ class UserProfile {
         'hourIndex': hourIndex,
         'isHourKnown': isHourKnown,
         'birthCity': birthCity,
+        'longitude': longitude,
         'notes': notes,
         'createdAt': createdAt.toIso8601String(),
       };
+
+  UserProfile copyWith({
+    String? id,
+    String? name,
+    String? gender,
+    DateTime? solarDate,
+    bool? isLunar,
+    int? hourIndex,
+    bool? isHourKnown,
+    String? birthCity,
+    double? longitude,
+    String? notes,
+    DateTime? createdAt,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      gender: gender ?? this.gender,
+      solarDate: solarDate ?? this.solarDate,
+      isLunar: isLunar ?? this.isLunar,
+      hourIndex: hourIndex ?? this.hourIndex,
+      isHourKnown: isHourKnown ?? this.isHourKnown,
+      birthCity: birthCity ?? this.birthCity,
+      longitude: longitude ?? this.longitude,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

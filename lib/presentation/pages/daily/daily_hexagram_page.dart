@@ -30,6 +30,8 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
   int _birthHourIndex = 6; // 默认午时
   String _profileName = '本命求测者';
   String _gender = '乾 (男)';
+  String? _birthCity;
+  double? _longitude;
 
   late DailyHexagramResult _dailyResult;
 
@@ -58,6 +60,8 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
       _birthHourIndex = primary.isHourKnown ? primary.hourIndex : -1;
       _profileName = primary.name.isNotEmpty ? primary.name : '本命求测者';
       _gender = primary.gender;
+      _birthCity = primary.birthCity;
+      _longitude = primary.longitude;
     }
     if (isInitial) {
       _recalculateSync();
@@ -75,6 +79,8 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
       birthHourIndex: _birthHourIndex,
       profileName: _profileName,
       gender: _gender,
+      birthCity: _birthCity,
+      longitude: _longitude,
     );
   }
 
@@ -270,6 +276,7 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
       solarDate: _birthDate,
       hourIndex: _birthHourIndex,
       isHourKnown: _birthHourIndex >= 0,
+      longitude: _longitude,
     );
     final result = IChingCalculator.calculateHexagrams(
       name: _profileName,
@@ -279,6 +286,8 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
       isHourKnown: _birthHourIndex >= 0,
       repository: IChingRepository.instance,
       bazi: bazi,
+      birthCity: _birthCity,
+      longitude: _longitude,
     );
 
     Navigator.push(
@@ -393,7 +402,7 @@ class _DailyHexagramPageState extends State<DailyHexagramPage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${_birthDate.year}年${_birthDate.month}月${_birthDate.day}日 · 日元${r.dayMasterElement}行 · 本命体卦',
+                            '${_birthDate.year}年${_birthDate.month}月${_birthDate.day}日 · ${_birthCity != null ? "$_birthCity · " : ""}日元${r.dayMasterElement}行 · 本命体卦',
                             style: TextStyle(fontSize: 11, color: textSecondary),
                           ),
                         ],

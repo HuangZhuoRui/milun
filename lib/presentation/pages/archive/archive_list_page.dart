@@ -17,6 +17,7 @@ class ArchiveListPage extends StatelessWidget {
       solarDate: p.solarDate,
       hourIndex: p.hourIndex,
       isHourKnown: p.isHourKnown,
+      longitude: p.longitude,
     );
 
     final result = IChingCalculator.calculateHexagrams(
@@ -27,6 +28,8 @@ class ArchiveListPage extends StatelessWidget {
       isHourKnown: p.isHourKnown,
       repository: IChingRepository.instance,
       bazi: bazi,
+      birthCity: p.birthCity,
+      longitude: p.longitude,
     );
 
     Navigator.push(
@@ -521,7 +524,7 @@ class _SlidableArchiveCardState extends State<SlidableArchiveCard>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${p.solarDate.year}年${p.solarDate.month}月${p.solarDate.day}日 · $shichenText',
+                                  '${p.solarDate.year}年${p.solarDate.month}月${p.solarDate.day}日 · $shichenText${p.birthCity != null ? " · ${p.birthCity}" : ""}',
                                   style: TextStyle(fontSize: 12, color: textSecondary),
                                 ),
                                 if (p.notes.isNotEmpty) ...[

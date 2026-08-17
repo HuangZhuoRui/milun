@@ -398,6 +398,7 @@ class DeepSeekService {
       solarDate: p.solarDate,
       hourIndex: p.hourIndex,
       isHourKnown: p.isHourKnown,
+      longitude: p.longitude,
     );
 
     return IChingCalculator.calculateHexagrams(
@@ -408,6 +409,8 @@ class DeepSeekService {
       isHourKnown: p.isHourKnown,
       repository: IChingRepository.instance,
       bazi: bazi,
+      birthCity: p.birthCity,
+      longitude: p.longitude,
     );
   }
 }

@@ -72,6 +72,7 @@ class _DivinationResultPageState extends State<DivinationResultPage> {
         solarDate: _currentResult.solarDate,
         hourIndex: selectedIndex,
         isHourKnown: true,
+        longitude: _currentResult.longitude,
       );
       final newResult = IChingCalculator.calculateHexagrams(
         name: _currentResult.name,
@@ -81,6 +82,8 @@ class _DivinationResultPageState extends State<DivinationResultPage> {
         isHourKnown: true,
         repository: IChingRepository.instance,
         bazi: bazi,
+        birthCity: _currentResult.birthCity,
+        longitude: _currentResult.longitude,
       );
       setState(() {
         _currentResult = newResult;
@@ -225,6 +228,8 @@ class _DivinationResultPageState extends State<DivinationResultPage> {
         isLunar: false,
         hourIndex: _currentResult.hourIndex,
         isHourKnown: _currentResult.bazi.isHourKnown,
+        birthCity: _currentResult.birthCity,
+        longitude: _currentResult.longitude,
         notes: notesController.text.trim(),
         createdAt: DateTime.now(),
       );

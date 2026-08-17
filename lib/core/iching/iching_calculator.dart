@@ -56,6 +56,8 @@ class IChingCalculator {
     required bool isHourKnown,
     required IChingRepository repository,
     required BaZiInfo bazi,
+    String? birthCity,
+    double? longitude,
   }) {
     // 转换为农历以提取农历月日
     Solar solar = Solar.fromYmdHms(
@@ -171,6 +173,8 @@ class IChingCalculator {
       changingYaoIndex: changingYaoIdx,
       changingYao: changingYao,
       yearlyHexagram: yearlyHex,
+      birthCity: birthCity,
+      longitude: longitude,
       precisionLevel: precision,
       summaryTitle: summary,
     );
@@ -183,15 +187,18 @@ class IChingCalculator {
     required int birthHourIndex, // 0..11, -1 for unknown
     String profileName = '本命求测者',
     String gender = '乾 (男)',
+    double? longitude,
+    String? birthCity,
     IChingRepository? repository,
   }) {
     final repo = repository ?? IChingRepository.instance;
 
-    // 1. 推算命主先天本命全息盘
+    // 1. 推算命主先天本命全息盘（带真太阳时经度校正）
     final birthBaZi = BaZiEngine.calculate(
       solarDate: birthDate,
       hourIndex: birthHourIndex,
       isHourKnown: birthHourIndex >= 0,
+      longitude: longitude,
     );
     final birthResult = calculateHexagrams(
       name: profileName,
@@ -201,6 +208,8 @@ class IChingCalculator {
       isHourKnown: birthHourIndex >= 0,
       repository: repo,
       bazi: birthBaZi,
+      birthCity: birthCity,
+      longitude: longitude,
     );
 
     final birthMainHex = birthResult.mainHexagram;
@@ -209,7 +218,10 @@ class IChingCalculator {
         ? birthResult.bazi.yearGanZhi.substring(1, 2)
         : '子';
     final int birthYearZhiNum = _zhiNumber[birthYearZhi] ?? 1;
-    final int birthHourNum = (birthHourIndex >= 0) ? (birthHourIndex + 1) : 7;
+    final String birthHourZhi = birthResult.bazi.hourGanZhi.length >= 2
+        ? birthResult.bazi.hourGanZhi.substring(1, 2)
+        : '午';
+    final int birthHourNum = (birthHourIndex >= 0) ? (_zhiNumber[birthHourZhi] ?? 7) : 7;
 
     // 2. 目标流日天象干支与农历信息
     Solar solar = Solar.fromYmdHms(targetDate.year, targetDate.month, targetDate.day, 12, 0, 0);

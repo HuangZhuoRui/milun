@@ -65,6 +65,7 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
   void _calculateRealtime({bool isInitial = false}) {
     final city = ConcentricAstrolabeWheel.cities[_astrolabeState.cityIndex];
     final double longitude = (city['lon'] as num).toDouble();
+    final String cityName = city['name'] as String;
 
     final bazi = BaZiEngine.calculate(
       solarDate: _astrolabeState.solarDate,
@@ -81,6 +82,8 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
       isHourKnown: _astrolabeState.isHourKnown,
       repository: IChingRepository.instance,
       bazi: bazi,
+      birthCity: cityName,
+      longitude: longitude,
     );
 
     final newHexId = _currentResult.mainHexagram.id;
@@ -180,12 +183,20 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
                                 ),
                               ),
                               subtitle: Text(
-                                '${p.solarDate.year}年${p.solarDate.month}月${p.solarDate.day}日 · $shichenText · ${p.gender}',
+                                '${p.solarDate.year}年${p.solarDate.month}月${p.solarDate.day}日 · $shichenText · ${p.birthCity ?? "北京"} · ${p.gender}',
                                 style: TextStyle(fontSize: 11, color: textSecondary),
                               ),
                               trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.getTextMuted(context)),
                               onTap: () {
                                 Navigator.pop(context);
+                                int resolvedCityIndex = _astrolabeState.cityIndex;
+                                if (p.birthCity != null) {
+                                  final idx = ConcentricAstrolabeWheel.cities.indexWhere(
+                                    (c) => c['name'] == p.birthCity || c['short'] == p.birthCity,
+                                  );
+                                  if (idx != -1) resolvedCityIndex = idx;
+                                }
+
                                 setState(() {
                                   _astrolabeState = ConcentricAstrolabeState(
                                     year: p.solarDate.year,
@@ -193,7 +204,7 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
                                     day: p.solarDate.day,
                                     hourIndex: p.hourIndex >= 0 ? p.hourIndex : 6,
                                     isHourKnown: p.isHourKnown,
-                                    cityIndex: _astrolabeState.cityIndex,
+                                    cityIndex: resolvedCityIndex,
                                     gender: p.gender,
                                   );
                                   _calculateRealtime();

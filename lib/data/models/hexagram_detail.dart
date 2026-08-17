@@ -284,6 +284,12 @@ class DivinationResult {
   /// 当年流年流月对应之流年卦
   final HexagramDetail? yearlyHexagram;
 
+  /// 出生地域/城市名称
+  final String? birthCity;
+
+  /// 出生地地理经度
+  final double? longitude;
+
   /// 排盘完备精度级别描述
   final String precisionLevel;
 
@@ -304,6 +310,8 @@ class DivinationResult {
     this.changingYaoIndex,
     this.changingYao,
     this.yearlyHexagram,
+    this.birthCity,
+    this.longitude,
     required this.precisionLevel,
     required this.summaryTitle,
   });
