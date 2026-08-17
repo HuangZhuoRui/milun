@@ -5,6 +5,7 @@ import 'package:whoami/data/models/user_profile.dart';
 import 'package:whoami/data/repositories/profile_repository.dart';
 import 'package:whoami/presentation/pages/archive/archive_list_page.dart';
 import 'package:whoami/presentation/pages/daily/daily_hexagram_page.dart';
+import 'package:whoami/presentation/pages/divination/divination_input_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -245,6 +246,68 @@ void main() {
 
       // 验证今日卦象页面自动即时刷新为孙七
       expect(find.textContaining('孙七'), findsWidgets);
+    });
+
+    testWidgets('DivinationInputPage 右上角亲友命簿弹窗支持左滑卡片设为主生辰或删除', (tester) async {
+      final p1 = UserProfile(
+        id: 'user_a',
+        name: '周八',
+        gender: '乾 (男)',
+        solarDate: DateTime(1993, 4, 12),
+        isLunar: false,
+        hourIndex: 4,
+        isHourKnown: true,
+        notes: '',
+        createdAt: DateTime.now(),
+      );
+      final p2 = UserProfile(
+        id: 'user_b',
+        name: '吴九',
+        gender: '坤 (女)',
+        solarDate: DateTime(1996, 9, 20),
+        isLunar: false,
+        hourIndex: 8,
+        isHourKnown: true,
+        notes: '',
+        createdAt: DateTime.now(),
+      );
+
+      ProfileRepository.instance.loadFromList([p1, p2], primaryId: 'user_a');
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: DivinationInputPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 点击右上角打开「从亲友命簿载入生辰」
+      final archiveBtn = find.byTooltip('从命簿载入生辰');
+      expect(archiveBtn, findsOneWidget);
+      await tester.tap(archiveBtn);
+      await tester.pumpAndSettle();
+
+      // 验证弹窗出现
+      expect(find.text('从亲友命簿载入生辰'), findsOneWidget);
+      expect(find.text('向左滑动卡片可删除或设为主生辰'), findsOneWidget);
+      expect(find.text('周八'), findsOneWidget);
+      expect(find.text('吴九'), findsOneWidget);
+
+      // 向左滑动吴九卡片
+      await tester.drag(find.text('吴九'), const Offset(-300, 0));
+      await tester.pumpAndSettle();
+
+      // 验证显现「设为主生辰」与「删除」按钮
+      expect(find.text('设为主生辰'), findsOneWidget);
+      expect(find.text('删除'), findsWidgets);
+
+      // 点击「设为主生辰」
+      await tester.tap(find.text('设为主生辰'));
+      await tester.pumpAndSettle();
+
+      // 验证 ProfileRepository 主生辰已即刻变更为吴九
+      expect(ProfileRepository.instance.primaryProfileId, 'user_b');
+      expect(ProfileRepository.instance.profiles.first.name, '吴九');
     });
   });
 }

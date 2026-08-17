@@ -7,6 +7,7 @@ import '../../../data/repositories/iching_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/concentric_astrolabe_wheel.dart';
+import '../../widgets/slidable_archive_card.dart';
 import 'divination_result_page.dart';
 
 class DivinationInputPage extends StatefulWidget {
@@ -109,24 +110,74 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
     );
   }
 
+  void _onSetPrimary(BuildContext context, UserProfile p) {
+    ProfileRepository.instance.setPrimaryProfileId(p.id);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已将「${p.name}」设为主生辰并置顶'),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? AppTheme.jadeGreen
+            : AppTheme.lightJadeGreen,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _onDeleteProfile(BuildContext context, UserProfile p) async {
+    final textPrimary = AppTheme.getTextPrimary(context);
+    final textSecondary = AppTheme.getTextSecondary(context);
+    final charcoal = AppTheme.getCharcoalColor(context);
+    final cinnabar = Theme.of(context).brightness == Brightness.dark
+        ? AppTheme.cinnabarRed
+        : AppTheme.lightCinnabarRed;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: charcoal,
+        title: Text('删除档案', style: TextStyle(color: textPrimary)),
+        content: Text('确定要删除「${p.name}」的排盘档案吗？', style: TextStyle(color: textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('取消', style: TextStyle(color: textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('删除', style: TextStyle(color: cinnabar)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ProfileRepository.instance.deleteProfile(p.id);
+    }
+  }
+
   Future<void> _showLoadFromArchiveModal() async {
     final textPrimary = AppTheme.getTextPrimary(context);
     final textSecondary = AppTheme.getTextSecondary(context);
     final charcoal = AppTheme.getCharcoalColor(context);
     final cardBg = AppTheme.getCardColor(context);
-    final border = AppTheme.getBorderColor(context);
+    final gold = AppTheme.getGoldColor(context);
 
     showModalBottomSheet(
       context: context,
       backgroundColor: charcoal,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return ListenableBuilder(
           listenable: ProfileRepository.instance,
-          builder: (context, _) {
+          builder: (sheetContext, _) {
             final profiles = ProfileRepository.instance.profiles;
+            final primaryId = ProfileRepository.instance.primaryProfileId;
+
             return Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               child: Column(
@@ -144,78 +195,113 @@ class _DivinationInputPageState extends State<DivinationInputPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    '从亲友命簿载入生辰',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 280),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: profiles.length,
-                      itemBuilder: (context, index) {
-                        final p = profiles[index];
-                        String shichenText = p.isHourKnown && p.hourIndex >= 0
-                            ? '${BaZiEngine.earthlyBranches[p.hourIndex]}时'
-                            : '时辰不详';
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Material(
-                            color: cardBg,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: border),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              title: Text(
-                                p.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: textPrimary,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${p.solarDate.year}年${p.solarDate.month}月${p.solarDate.day}日 · $shichenText · ${p.birthCity ?? "北京"} · ${p.gender}',
-                                style: TextStyle(fontSize: 11, color: textSecondary),
-                              ),
-                              trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.getTextMuted(context)),
-                              onTap: () {
-                                Navigator.pop(context);
-                                int resolvedCityIndex = _astrolabeState.cityIndex;
-                                if (p.birthCity != null) {
-                                  final idx = ConcentricAstrolabeWheel.cities.indexWhere(
-                                    (c) => c['name'] == p.birthCity || c['short'] == p.birthCity,
-                                  );
-                                  if (idx != -1) resolvedCityIndex = idx;
-                                }
-
-                                setState(() {
-                                  _astrolabeState = ConcentricAstrolabeState(
-                                    year: p.solarDate.year,
-                                    month: p.solarDate.month,
-                                    day: p.solarDate.day,
-                                    hourIndex: p.hourIndex >= 0 ? p.hourIndex : 6,
-                                    isHourKnown: p.isHourKnown,
-                                    cityIndex: resolvedCityIndex,
-                                    gender: p.gender,
-                                  );
-                                  _calculateRealtime();
-                                });
-                              },
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '从亲友命簿载入生辰',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '向左滑动卡片可删除或设为主生辰',
+                            style: TextStyle(fontSize: 11, color: AppTheme.getTextMuted(context)),
+                          ),
+                        ],
+                      ),
+                      if (profiles.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: gold.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${profiles.length} 位亲友',
+                            style: TextStyle(fontSize: 11, color: gold, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 14),
+                  if (profiles.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_outline, size: 40, color: AppTheme.getTextMuted(context)),
+                          const SizedBox(height: 10),
+                          Text(
+                            '命簿暂无记录',
+                            style: TextStyle(fontSize: 14, color: textSecondary, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '排盘后点击右上角星形按钮存入亲友档案',
+                            style: TextStyle(fontSize: 11.5, color: AppTheme.getTextMuted(context)),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.52,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: profiles.length,
+                        itemBuilder: (sheetContext, index) {
+                          final p = profiles[index];
+                          final bool isPrimary = (primaryId == p.id) || (primaryId == null && index == 0);
+
+                          return SlidableArchiveCard(
+                            key: ValueKey(p.id),
+                            profile: p,
+                            isPrimary: isPrimary,
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              int resolvedCityIndex = _astrolabeState.cityIndex;
+                              if (p.birthCity != null) {
+                                final idx = ConcentricAstrolabeWheel.cities.indexWhere(
+                                  (c) => c['name'] == p.birthCity || c['short'] == p.birthCity,
+                                );
+                                if (idx != -1) resolvedCityIndex = idx;
+                              }
+
+                              setState(() {
+                                _astrolabeState = ConcentricAstrolabeState(
+                                  year: p.solarDate.year,
+                                  month: p.solarDate.month,
+                                  day: p.solarDate.day,
+                                  hourIndex: p.hourIndex >= 0 ? p.hourIndex : 6,
+                                  isHourKnown: p.isHourKnown,
+                                  cityIndex: resolvedCityIndex,
+                                  gender: p.gender,
+                                );
+                                _calculateRealtime();
+                              });
+                            },
+                            onSetPrimary: () => _onSetPrimary(context, p),
+                            onDelete: () => _onDeleteProfile(context, p),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
             );
